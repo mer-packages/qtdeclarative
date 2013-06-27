@@ -4377,6 +4377,8 @@ void QQuickItemPrivate::deliverKeyEvent(QKeyEvent *e)
             e->accept();
     }
 
+    qApp->notify(q, e);
+
     if (e->type() == QEvent::KeyPress)
         q->keyPressEvent(e);
     else
