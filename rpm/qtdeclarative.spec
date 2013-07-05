@@ -14,6 +14,7 @@ BuildRequires:  qt5-qtsql-devel
 BuildRequires:  qt5-qttest-devel
 BuildRequires:  qt5-qtv8-devel
 BuildRequires:  qt5-qtwidgets-devel
+BuildRequires:  qt5-qtxmlpatterns-devel
 BuildRequires:  qt5-qmake
 BuildRequires:  fdupes
 BuildRequires:  python
@@ -216,6 +217,14 @@ Requires:   %{name} = %{version}-%{release}
 %description import-privatewidgets
 This package provides the QtDeclarative private widgets plugin for QtQuick 2.0
 
+%package import-xmllistmodel
+Summary:    Qt Declarative XmlListModel plugin
+Group:      Qt/Qt
+Requires:   %{name} = %{version}-%{release}
+
+%description import-xmllistmodel
+This package provides the QtDeclarative XmlListModel plugin for QtQuick 2.0
+
 %package qmlscene
 Summary:    QML scene viewer
 Group:      Qt/Qt
@@ -402,7 +411,9 @@ cp lib/libQt5QmlDevTools.a %{buildroot}/%{_libdir}
 %defattr(-,root,root,-)
 %{_libdir}/qt5/qml/QtQuick/PrivateWidgets/
 
-
+%files import-xmllistmodel
+%defattr(-,root,root,-)
+%{_libdir}/qt5/qml/QtQuick/XmlListModel/
 
 
 
