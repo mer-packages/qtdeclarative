@@ -324,6 +324,21 @@ public:
         }
     }
 
+    void setSections(const QString &prev, const QString &sect, const QString &next) {
+        bool prevChanged = prev != m_prevSection;
+        bool sectChanged = sect != m_section;
+        bool nextChanged = next != m_nextSection;
+        m_prevSection = prev;
+        m_section = sect;
+        m_nextSection = next;
+        if (prevChanged)
+            emit prevSectionChanged();
+        if (sectChanged)
+            emit sectionChanged();
+        if (nextChanged)
+            emit nextSectionChanged();
+    }
+
     void emitAdd() { emit add(); }
     void emitRemove() { emit remove(); }
 

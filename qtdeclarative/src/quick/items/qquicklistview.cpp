@@ -575,20 +575,22 @@ FxViewItem *QQuickListViewPrivate::newViewItem(int modelIndex, QQuickItem *item)
 
     // initialise attached properties
     if (sectionCriteria) {
-        QString propValue = model->stringValue(modelIndex, sectionCriteria->property());
-        listItem->attached->setSection(sectionCriteria->sectionString(propValue));
+        QString section = model->stringValue(modelIndex, sectionCriteria->property());
+        QString prevSection;
+        QString nextSection;
         if (modelIndex > 0) {
             if (FxViewItem *item = itemBefore(modelIndex))
-                listItem->attached->setPrevSection(item->attached->section());
+                prevSection = item->attached->section();
             else
-                listItem->attached->setPrevSection(sectionAt(modelIndex-1));
+                prevSection = sectionAt(modelIndex-1);
         }
-        if (modelIndex < model->count()-1) {
-            if (FxViewItem *item = visibleItem(modelIndex+1))
-                listItem->attached->setNextSection(static_cast<QQuickListViewAttached*>(item->attached)->section());
+        if (modelIndex < model->count()) {
+            if (FxViewItem *item = visibleItem(modelIndex))
+                nextSection = static_cast<QQuickListViewAttached*>(item->attached)->section();
             else
-                listItem->attached->setNextSection(sectionAt(modelIndex+1));
+                nextSection = sectionAt(modelIndex);
         }
+        listItem->attached->setSections(prevSection, section, nextSection);
     }
 
     return listItem;
