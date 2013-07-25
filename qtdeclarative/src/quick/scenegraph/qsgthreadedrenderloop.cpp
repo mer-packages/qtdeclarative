@@ -963,6 +963,9 @@ void QSGThreadedRenderLoop::releaseResources(QQuickWindow *window, bool inDestru
 
 void QSGThreadedRenderLoop::polishAndSync()
 {
+    killTimer(m_update_timer);
+    m_update_timer = 0;
+
     if (!anyoneShowing())
         return;
 
@@ -1010,9 +1013,6 @@ void QSGThreadedRenderLoop::polishAndSync()
     if (profileFrames)
         syncTime = timer.nsecsElapsed();
 #endif
-
-    killTimer(m_update_timer);
-    m_update_timer = 0;
 
     if (m_animation_driver->isRunning()) {
         RLDEBUG("GUI:  - animations advancing");
