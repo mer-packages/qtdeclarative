@@ -276,6 +276,7 @@ void QQuickWindowPrivate::polishItems()
 void QQuickWindow::update()
 {
     Q_D(QQuickWindow);
+    d->windowManagerSyncExpected = true;
     d->windowManager->update(this);
 }
 
@@ -294,6 +295,8 @@ void QQuickWindowPrivate::syncSceneGraph()
 {
     QML_MEMORY_SCOPE_STRING("SceneGraph");
     Q_Q(QQuickWindow);
+
+    windowManagerSyncExpected = false;
 
     emit q->beforeSynchronizing();
     if (!renderer) {
@@ -350,6 +353,7 @@ QQuickWindowPrivate::QQuickWindowPrivate()
     , context(0)
     , renderer(0)
     , windowManager(0)
+    , windowManagerSyncExpected(false)
     , clearColor(Qt::white)
     , clearBeforeRendering(true)
     , persistentGLContext(true)
@@ -389,6 +393,9 @@ void QQuickWindowPrivate::init(QQuickWindow *c)
     QObject::connect(context, SIGNAL(invalidated()), q, SLOT(cleanupSceneGraph()), Qt::DirectConnection);
 
     QObject::connect(q, SIGNAL(focusObjectChanged(QObject*)), q, SIGNAL(activeFocusItemChanged()));
+
+    QQuickWindowTouchFilter *filter = new QQuickWindowTouchFilter(q);
+    QObject::connect(q, SIGNAL(beforeSynchronizing()), filter, SLOT(beginSync()), Qt::DirectConnection);
 }
 
 /*!
@@ -1151,6 +1158,113 @@ bool QQuickWindowPrivate::clearHover()
         accepted = sendHoverEvent(QEvent::HoverLeave, item, pos, pos, QGuiApplication::keyboardModifiers(), true) || accepted;
     hoverItems.clear();
     return accepted;
+}
+
+/*
+  This filter batches touch updates into a single window system level event.
+  We try our best to limit the number of updates to one per drawn frame.  This
+  isn't always possible - for example, in some cases a touch update will not 
+  cause a redraw so we must allow more through.
+*/
+QQuickWindowTouchFilter::QQuickWindowTouchFilter(QQuickWindow *w)
+: QObject(w), m_window(w), m_delayedEventPosted(false), m_delayedEventForFrameOccurred(false),
+  m_delayedWindow(0), m_delayedTimestamp(0), m_delayedDevice(0), m_delayedMods(0)
+{
+}
+
+bool QQuickWindowTouchFilter::handleTouchEvent(QWindow *w, ulong timestamp, QTouchDevice *device,
+                                               const QList<struct QWindowSystemInterface::TouchPoint> &points,
+                                               Qt::KeyboardModifiers mods)
+{
+    if ((w && w != m_window) || (!w && !m_window->isActive()))
+        return false;
+
+    // We only buffer move updates
+    bool moveEvent = true;
+    for (int ii = 0; ii < points.count(); ++ii) {
+        const QWindowSystemInterface::TouchPoint &tp = points.at(ii);
+        if (tp.state == Qt::TouchPointReleased || tp.state == Qt::TouchPointPressed)
+            moveEvent = false;
+    }
+
+    if (moveEvent) {
+        if (m_delayedPoints.isEmpty()) {
+            m_delayedWindow = w;
+            m_delayedTimestamp = timestamp;
+            m_delayedDevice = device;
+            m_delayedPoints = points;
+            m_delayedMods = mods;
+            triggerDelayed();
+            return true;
+        } else if (m_delayedWindow == w &&
+                   m_delayedDevice == device &&
+                   m_delayedMods == mods &&
+                   m_delayedPoints.count() == points.count()) {
+            bool mismatch = false;
+
+            for (int ii = 0; !mismatch && ii < points.count(); ++ii) {
+                const QWindowSystemInterface::TouchPoint &tp = points.at(ii);
+                const QWindowSystemInterface::TouchPoint &dtp = m_delayedPoints.at(ii);
+
+                mismatch |= tp.id != dtp.id || tp.state != dtp.state;
+            }
+
+            if (!mismatch) {
+                m_delayedTimestamp = timestamp;
+                m_delayedPoints = points;
+                triggerDelayed();
+                return true;
+            }
+        }
+    }
+
+    m_delayedEventForFrameOccurred = false;
+    sendDelayed();
+    deliverTouchEvent(w, timestamp, device, points, mods);
+    return true;
+}
+
+bool QQuickWindowTouchFilter::event(QEvent *e)
+{
+    if (e->type() == QEvent::User) {
+        if (!(m_delayedEventForFrameOccurred &&
+              QQuickWindowPrivate::get(m_window)->windowManagerSyncExpected &&
+              m_window->isVisible()))
+            sendDelayed();
+
+        m_delayedEventForFrameOccurred = true;
+        m_delayedEventPosted = false;
+    }
+
+    return QObject::event(e);
+}
+
+void QQuickWindowTouchFilter::beginSync()
+{
+    m_delayedEventForFrameOccurred = false;
+    triggerDelayed();
+}
+
+void QQuickWindowTouchFilter::triggerDelayed()
+{
+    if (!m_delayedEventPosted && m_delayedPoints.count()) {
+        m_delayedEventPosted = true;
+        QCoreApplication::postEvent(this, new QEvent(QEvent::User));
+    }
+}
+
+void QQuickWindowTouchFilter::sendDelayed()
+{
+    if (m_delayedPoints.isEmpty())
+        return;
+
+    deliverTouchEvent(m_delayedWindow, m_delayedTimestamp, m_delayedDevice,
+                      m_delayedPoints, m_delayedMods);
+    m_delayedWindow = 0;
+    m_delayedTimestamp = 0;
+    m_delayedDevice = 0;
+    m_delayedPoints.clear();
+    m_delayedMods = 0;
 }
 
 /*! \reimp */
@@ -2510,6 +2624,7 @@ void QQuickWindowPrivate::updateDirtyNode(QQuickItem *item)
 void QQuickWindow::maybeUpdate()
 {
     Q_D(QQuickWindow);
+    d->windowManagerSyncExpected = true;
     d->windowManager->maybeUpdate(this);
 }
 
