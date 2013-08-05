@@ -1113,8 +1113,8 @@ void QQuickFlickablePrivate::handleMouseMoveEvent(QMouseEvent *event)
         hData.velocity = 0;
     }
 
+    draggingStarting();
     if ((hMoved && !prevHMoved) || (vMoved && !prevVMoved)) {
-        draggingStarting();
         q->movementStarting();
     }
 
