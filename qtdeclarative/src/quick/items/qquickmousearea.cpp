@@ -593,15 +593,27 @@ qreal QQuickMouseArea::mouseY() const
 bool QQuickMouseArea::isEnabled() const
 {
     Q_D(const QQuickMouseArea);
-    return d->enabled;
+    return d->isEnabled();
+}
+
+bool QQuickMouseAreaPrivate::isEnabled() const
+{
+    return enabled;
 }
 
 void QQuickMouseArea::setEnabled(bool a)
 {
     Q_D(QQuickMouseArea);
-    if (a != d->enabled) {
-        d->enabled = a;
-        emit enabledChanged();
+    d->setEnabled(a);
+}
+
+void QQuickMouseAreaPrivate::setEnabled(bool a)
+{
+    Q_Q(QQuickMouseArea);
+    if (a != enabled) {
+        enabled = a;
+        emit q->enabledChanged();
+        emit q->QQuickItem::enabledChanged();
     }
 }
 

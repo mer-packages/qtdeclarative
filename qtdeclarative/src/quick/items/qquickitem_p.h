@@ -293,6 +293,9 @@ public:
     static QQuickTransform *transform_at(QQmlListProperty<QQuickTransform> *list, int);
     static void transform_clear(QQmlListProperty<QQuickTransform> *list);
 
+    virtual bool isEnabled() const;
+    virtual void setEnabled(bool);
+
     void _q_resourceObjectDeleted(QObject *);
 
     enum ChangeType {

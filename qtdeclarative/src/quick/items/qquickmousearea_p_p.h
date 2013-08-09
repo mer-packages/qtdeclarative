@@ -80,6 +80,9 @@ public:
     void propagate(QQuickMouseEvent* event, PropagateType);
     bool propagateHelper(QQuickMouseEvent*, QQuickItem*,const QPointF &, PropagateType);
 
+    virtual bool isEnabled() const;
+    virtual void setEnabled(bool);
+
     bool isPressAndHoldConnected();
     bool isDoubleClickConnected();
     bool isClickConnected();

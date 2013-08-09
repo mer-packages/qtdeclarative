@@ -5244,22 +5244,34 @@ void QQuickItem::setVisible(bool v)
 bool QQuickItem::isEnabled() const
 {
     Q_D(const QQuickItem);
-    return d->effectiveEnable;
+    return d->isEnabled();
 }
 
 void QQuickItem::setEnabled(bool e)
 {
     Q_D(QQuickItem);
-    if (e == d->explicitEnable)
+    d->setEnabled(e);
+}
+
+bool QQuickItemPrivate::isEnabled() const
+{
+    return effectiveEnable;
+}
+
+void QQuickItemPrivate::setEnabled(bool e)
+{
+    Q_Q(QQuickItem);
+
+    if (e == explicitEnable)
         return;
 
-    d->explicitEnable = e;
+    explicitEnable = e;
 
-    QQuickItem *scope = parentItem();
+    QQuickItem *scope = q->parentItem();
     while (scope && !scope->isFocusScope())
         scope = scope->parentItem();
 
-    d->setEffectiveEnableRecur(scope, d->calcEffectiveEnable());
+    setEffectiveEnableRecur(scope, calcEffectiveEnable());
 }
 
 bool QQuickItemPrivate::calcEffectiveVisible() const
