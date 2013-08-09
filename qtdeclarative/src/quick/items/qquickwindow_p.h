@@ -68,6 +68,7 @@
 #include <qopenglcontext.h>
 #include <QtGui/qopenglframebufferobject.h>
 #include <QtGui/qevent.h>
+#include <QtGui/qpa/qwindowsysteminterface.h>
 
 QT_BEGIN_NAMESPACE
 
@@ -91,6 +92,39 @@ class QQuickWindowPrivate;
 class QTouchEvent;
 class QQuickWindowRenderLoop;
 class QQuickWindowIncubationController;
+
+class QQuickWindowTouchFilter : public QObject, public QWindowSystemInterface::TouchEventFilter
+{
+    Q_OBJECT
+
+public:
+    QQuickWindowTouchFilter(QQuickWindow *);
+
+    virtual bool handleTouchEvent(QWindow *w, ulong timestamp, QTouchDevice *device,
+                                  const QList<struct QWindowSystemInterface::TouchPoint> &points,
+                                  Qt::KeyboardModifiers mods);
+
+protected:
+    virtual bool event(QEvent *);
+
+private slots:
+    void beginSync();
+
+private:
+    void triggerDelayed();
+    void sendDelayed();
+
+    QQuickWindow *m_window;
+
+    bool m_delayedEventPosted;
+    bool m_delayedEventForFrameOccurred;
+
+    QWindow *m_delayedWindow;
+    ulong m_delayedTimestamp;
+    QTouchDevice *m_delayedDevice;
+    QList<struct QWindowSystemInterface::TouchPoint> m_delayedPoints;
+    Qt::KeyboardModifiers m_delayedMods;
+};
 
 class Q_QUICK_PRIVATE_EXPORT QQuickWindowPrivate : public QWindowPrivate
 {
@@ -198,6 +232,7 @@ public:
     QSGRenderer *renderer;
 
     QSGRenderLoop *windowManager;
+    bool windowManagerSyncExpected;
 
     QColor clearColor;
 
