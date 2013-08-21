@@ -178,6 +178,8 @@ struct Register {
     inline const v8::Handle<v8::Value> *gethandleptr() const { return reinterpret_cast<const v8::Handle<v8::Value> *>(typeDataPtr()); }
     inline const QJSValue *getjsvalueptr() const { return reinterpret_cast<const QJSValue *>(typeDataPtr()); }
 
+    inline void stringModified() { stringColorOpacity = 0xFF; }
+
     size_t dataSize() { return sizeof(data); }
     inline void *typeDataPtr() { return (void *)&data; }
     inline void *typeMemory() { return (void *)data; }
@@ -187,7 +189,9 @@ struct Register {
     inline Type gettype() const { return dataType; }
     inline void settype(Type t) { dataType = t; }
 
-    Type dataType;     // Type of data
+    Type dataType:24;          // Type of data
+    quint8 stringColorOpacity; // Hack to have lossless color->string->color conversion
+
     union {
         QObject *qobjectValue;
         double numberValue;
@@ -1165,6 +1169,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
             output.setUndefined();
         } else {
             new (output.getstringptr()) QString(QLatin1String(src.getbool() ? "true" : "false"));
+            output.stringModified();
             STRING_REGISTER(instr->unaryop.output);
         }
     }
@@ -1238,6 +1243,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
             output.setUndefined();
         } else {
             new (output.getstringptr()) QString(QString::number(src.getint()));
+            output.stringModified();
             STRING_REGISTER(instr->unaryop.output);
         }
     }
@@ -1333,6 +1339,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
             output.setUndefined();
         } else {
             new (output.getstringptr()) QString(QString::number(src.getnumber(), 'g', 16));
+            output.stringModified();
             STRING_REGISTER(instr->unaryop.output);
         }
     }
@@ -1473,11 +1480,12 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
             output.setUndefined();
         } else {
             const QString tmp(*src.getstringptr());
+            quint8 opacity = src.stringColorOpacity;
             if (instr->unaryop.src == instr->unaryop.output) {
                 output.cleanupString();
                 MARK_CLEAN_REGISTER(instr->unaryop.output);
             }
-            QQml_valueTypeProvider()->createValueFromString(QMetaType::QColor, tmp, output.typeDataPtr(), output.dataSize());
+            QQml_colorProvider()->stringToColor(output.typeDataPtr(), tmp, opacity);
 
             COLOR_REGISTER(instr->unaryop.output);
         }
@@ -1571,6 +1579,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
                 MARK_CLEAN_REGISTER(instr->unaryop.output);
             }
             new (output.getstringptr()) QString(tmp.toString());
+            output.stringModified();
             STRING_REGISTER(instr->unaryop.output);
         }
     }
@@ -1661,7 +1670,9 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
         if (src.isUndefined()) {
             output.setUndefined();
         } else {
-            QQml_valueTypeProvider()->createStringFromValue(QMetaType::QColor, src.typeDataPtr(), output.getstringptr());
+            QQml_colorProvider()->colorToString(src.typeDataPtr(),
+                                                output.getstringptr(),
+                                                &output.stringColorOpacity);
             STRING_REGISTER(instr->unaryop.output);
         }
     }
@@ -1946,6 +1957,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
         Register &output = registers[instr->string_value.reg];
         QChar *string = (QChar *)(data + instr->string_value.offset);
         new (output.getstringptr()) QString(string, instr->string_value.length);
+        output.stringModified();
         STRING_REGISTER(instr->string_value.reg);
     }
     QML_V4_END_INSTR(LoadString, string_value)
@@ -1987,7 +1999,9 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
 
     QML_V4_BEGIN_INSTR(AddString, binaryop)
     {
-        QString &string = *registers[instr->binaryop.output].getstringptr();
+        Register &output = registers[instr->binaryop.output];
+        QString &string = *output.getstringptr();
+        output.stringModified();
         if (instr->binaryop.output == instr->binaryop.left) {
             string += registers[instr->binaryop.right].getstringptr();
         } else {
@@ -2158,9 +2172,10 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
 
     QML_V4_BEGIN_INSTR(EqualString, binaryop)
     {
-        const QString &a = *registers[instr->binaryop.left].getstringptr();
-        const QString &b = *registers[instr->binaryop.right].getstringptr();
-        bool result = a == b;
+        const Register &lhs = registers[instr->binaryop.left];
+        const Register &rhs = registers[instr->binaryop.right];
+        bool result = *lhs.getstringptr() == *rhs.getstringptr() &&
+                      lhs.stringColorOpacity == rhs.stringColorOpacity;
         if (instr->binaryop.left == instr->binaryop.output) {
             registers[instr->binaryop.output].cleanupString();
             MARK_CLEAN_REGISTER(instr->binaryop.output);
@@ -2171,9 +2186,10 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
 
     QML_V4_BEGIN_INSTR(NotEqualString, binaryop)
     {
-        const QString &a = *registers[instr->binaryop.left].getstringptr();
-        const QString &b = *registers[instr->binaryop.right].getstringptr();
-        bool result = a != b;
+        const Register &lhs = registers[instr->binaryop.left];
+        const Register &rhs = registers[instr->binaryop.right];
+        bool result = *lhs.getstringptr() != *rhs.getstringptr() ||
+                      lhs.stringColorOpacity != rhs.stringColorOpacity;
         if (instr->binaryop.left == instr->binaryop.output) {
             registers[instr->binaryop.output].cleanupString();
             MARK_CLEAN_REGISTER(instr->binaryop.output);
@@ -2184,9 +2200,10 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
 
     QML_V4_BEGIN_INSTR(StrictEqualString, binaryop)
     {
-        const QString &a = *registers[instr->binaryop.left].getstringptr();
-        const QString &b = *registers[instr->binaryop.right].getstringptr();
-        bool result = a == b;
+        const Register &lhs = registers[instr->binaryop.left];
+        const Register &rhs = registers[instr->binaryop.right];
+        bool result = *lhs.getstringptr() == *rhs.getstringptr() &&
+                      lhs.stringColorOpacity == rhs.stringColorOpacity;
         if (instr->binaryop.left == instr->binaryop.output) {
             registers[instr->binaryop.output].cleanupString();
             MARK_CLEAN_REGISTER(instr->binaryop.output);
@@ -2197,9 +2214,10 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
 
     QML_V4_BEGIN_INSTR(StrictNotEqualString, binaryop)
     {
-        const QString &a = *registers[instr->binaryop.left].getstringptr();
-        const QString &b = *registers[instr->binaryop.right].getstringptr();
-        bool result = a != b;
+        const Register &lhs = registers[instr->binaryop.left];
+        const Register &rhs = registers[instr->binaryop.right];
+        bool result = *lhs.getstringptr() != *rhs.getstringptr() ||
+                      lhs.stringColorOpacity != rhs.stringColorOpacity;
         if (instr->binaryop.left == instr->binaryop.output) {
             registers[instr->binaryop.output].cleanupString();
             MARK_CLEAN_REGISTER(instr->binaryop.output);
@@ -2298,6 +2316,7 @@ void QV4Bindings::run(int instrIndex, quint32 &executedBlocks,
     {
         Register &output = registers[instr->construct.reg];
         new (output.getstringptr()) QString;
+        output.stringModified();
         STRING_REGISTER(instr->construct.reg);
     }
     QML_V4_END_INSTR(NewString, construct)

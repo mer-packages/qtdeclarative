@@ -59,9 +59,8 @@ QT_BEGIN_NAMESPACE
 class QQuickColorProvider : public QQmlColorProvider
 {
 public:
-    static inline QColor QColorFromString(const QString &s)
+    static inline QColor QColorFromString(const QString &s, quint8 alpha = 0xFF)
     {
-        // Should we also handle #rrggbb here?
         if (s.length() == 9 && s.startsWith(QLatin1Char('#'))) {
             uchar a = fromHex(s, 1);
             uchar r = fromHex(s, 3);
@@ -70,7 +69,14 @@ public:
             return QColor(r, g, b, a);
         }
 
-        return QColor(s);
+        QColor rv(s);
+        if (s.startsWith(QLatin1Char('#')) && rv.isValid()) {
+            // This path can only happen for correctly formed #RRGGBB colors
+            Q_ASSERT(s.length() == 7);
+            Q_ASSERT(rv.alpha() == 0xFF);
+            rv.setAlpha(alpha);
+        }
+        return rv;
     }
 
     QVariant colorFromString(const QString &s, bool *ok)
@@ -152,6 +158,18 @@ public:
         qreal b = tintColor.blueF() * a + baseColor.blueF() * inv_a;
 
         return QVariant::fromValue(QColor::fromRgbF(r, g, b, a + inv_a * baseColor.alphaF()));
+    }
+
+    void colorToString(const void *colorPtr, QString *string, quint8 *opacity)
+    {
+        QColor color = *reinterpret_cast<const QColor *>(colorPtr);
+        new (string) QString(color.name());
+        *opacity = quint8(color.alpha());
+    }
+
+    void stringToColor(void *colorPtr, const QString &string, quint8 opacity)
+    {
+        new (colorPtr) QColor(QColorFromString(string, opacity));
     }
 
 private:

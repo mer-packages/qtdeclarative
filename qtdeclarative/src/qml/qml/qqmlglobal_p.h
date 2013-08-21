@@ -292,6 +292,9 @@ public:
     virtual QVariant lighter(const QVariant &, qreal);
     virtual QVariant darker(const QVariant &, qreal);
     virtual QVariant tint(const QVariant &, const QVariant &);
+
+    virtual void colorToString(const void *, QString *, quint8 *);
+    virtual void stringToColor(void *, const QString &, quint8);
 };
 
 Q_QML_PRIVATE_EXPORT QQmlColorProvider *QQml_setColorProvider(QQmlColorProvider *);

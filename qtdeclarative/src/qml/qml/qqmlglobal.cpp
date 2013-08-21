@@ -329,6 +329,8 @@ QVariant QQmlColorProvider::fromHslF(double, double, double, double) { return QV
 QVariant QQmlColorProvider::lighter(const QVariant &, qreal) { return QVariant(); }
 QVariant QQmlColorProvider::darker(const QVariant &, qreal) { return QVariant(); }
 QVariant QQmlColorProvider::tint(const QVariant &, const QVariant &) { return QVariant(); }
+void QQmlColorProvider::colorToString(const void *, QString *, quint8 *) {}
+void QQmlColorProvider::stringToColor(void *, const QString &, quint8) {}
 
 static QQmlColorProvider *colorProvider = 0;
 
