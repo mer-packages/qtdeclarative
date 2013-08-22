@@ -248,6 +248,7 @@ void Register::cleanup()
     if (dataType >= FirstCleanupType) {
         if (dataType == QStringType) {
             destroyPointee(getstringptr());
+            stringModified();
         } else if (dataType == QUrlType) {
             destroyPointee(geturlptr());
         } else if (dataType == QColorType) {
@@ -266,6 +267,7 @@ void Register::cleanup()
 void Register::cleanupString()
 {
     destroyPointee(getstringptr());
+    stringModified();
     setUndefined();
 }
 
@@ -303,9 +305,10 @@ void Register::copy(const Register &other)
 {
     *this = other;
     if (other.dataType >= FirstCleanupType) {
-        if (other.dataType == QStringType)
+        if (other.dataType == QStringType) {
             copyConstructPointee(getstringptr(), other.getstringptr());
-        else if (other.dataType == QUrlType)
+            stringColorOpacity = other.stringColorOpacity;
+        } else if (other.dataType == QUrlType)
             copyConstructPointee(geturlptr(), other.geturlptr());
         else if (other.dataType == QColorType)
             QQml_valueTypeProvider()->copyValueType(QMetaType::QColor, other.typeDataPtr(), typeDataPtr(), dataSize());
@@ -322,9 +325,10 @@ void Register::init(Type type)
 {
     dataType = type;
     if (dataType >= FirstCleanupType) {
-        if (dataType == QStringType)
+        if (dataType == QStringType) {
             defaultConstructPointee(getstringptr());
-        else if (dataType == QUrlType)
+            stringModified();
+        } else if (dataType == QUrlType)
             defaultConstructPointee(geturlptr());
         else if (dataType == QColorType)
             QQml_valueTypeProvider()->initValueType(QMetaType::QColor, typeDataPtr(), dataSize());
