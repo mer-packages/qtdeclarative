@@ -70,7 +70,7 @@ public:
         }
 
         QColor rv(s);
-        if (s.startsWith(QLatin1Char('#')) && rv.isValid()) {
+        if (rv.isValid() && s.length() == 7 && s.startsWith(QLatin1Char('#'))) {
             // This path can only happen for correctly formed #RRGGBB colors
             Q_ASSERT(s.length() == 7);
             Q_ASSERT(rv.alpha() == 0xFF);
