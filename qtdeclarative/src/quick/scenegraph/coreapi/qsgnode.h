@@ -3,7 +3,7 @@
 ** Copyright (C) 2013 Digia Plc and/or its subsidiary(-ies).
 ** Contact: http://www.qt-project.org/legal
 **
-** This file is part of the QtQml module of the Qt Toolkit.
+** This file is part of the QtQuick module of the Qt Toolkit.
 **
 ** $QT_BEGIN_LICENSE:LGPL$
 ** Commercial License Usage
@@ -59,6 +59,11 @@ class QSGGeometryNode;
 class QSGTransformNode;
 class QSGClipNode;
 
+namespace QSGBatchRenderer {
+    class Renderer;
+    class Updater;
+}
+
 class Q_QUICK_EXPORT QSGNode
 {
 public:
@@ -79,16 +84,19 @@ public:
         OwnedByParent               = 0x0001,
         UsePreprocess               = 0x0002,
 
-        // Upper 16 bits reserved for node subclasses
+        // 0x00ff0000 bits reserved for node subclasses
 
         // QSGBasicGeometryNode
         OwnsGeometry                = 0x00010000,
         OwnsMaterial                = 0x00020000,
         OwnsOpaqueMaterial          = 0x00040000
+
+        // Uppermost 8 bits are reserved for internal use.
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 
     enum DirtyStateBit {
+        DirtySubtreeBlocked         = 0x0080,
         DirtyMatrix                 = 0x0100,
         DirtyNodeAdded              = 0x0400,
         DirtyNodeRemoved            = 0x0800,
@@ -152,6 +160,7 @@ protected:
 
 private:
     friend class QSGRootNode;
+    friend class QSGBatchRenderer::Renderer;
 
     void init();
     void destroy();
@@ -165,7 +174,7 @@ private:
     int m_subtreeRenderableCount;
 
     Flags m_nodeFlags;
-    DirtyState m_dirtyState;
+    DirtyState m_dirtyState; // Obsolete, remove in Qt 6
 
     void *m_reserved;
 };
@@ -187,6 +196,8 @@ protected:
 
 private:
     friend class QSGNodeUpdater;
+    friend class QSGBatchRenderer::Updater;
+
     QSGGeometry *m_geometry;
 
     int m_reserved_start_index;

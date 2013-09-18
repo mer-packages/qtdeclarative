@@ -49,6 +49,10 @@ QT_BEGIN_NAMESPACE
 
 class QSGMaterial;
 
+namespace QSGBatchRenderer {
+    class ShaderManager;
+}
+
 class Q_QUICK_EXPORT QSGMaterialShader
 {
 public:
@@ -95,8 +99,8 @@ public:
     inline QOpenGLShaderProgram *program() { return &m_program; }
 
 protected:
-
     friend class QSGContext;
+    friend class QSGBatchRenderer::ShaderManager;
 
     virtual void compile();
     virtual void initialize() { }
@@ -118,7 +122,9 @@ public:
         Blending            = 0x0001,
         RequiresDeterminant = 0x0002, // Allow precalculated translation and 2D rotation
         RequiresFullMatrixExceptTranslate = 0x0004 | RequiresDeterminant, // Allow precalculated translation
-        RequiresFullMatrix  = 0x0008 | RequiresFullMatrixExceptTranslate
+        RequiresFullMatrix  = 0x0008 | RequiresFullMatrixExceptTranslate,
+
+        CustomCompileStep   = 0x0010
     };
     Q_DECLARE_FLAGS(Flags, Flag)
 

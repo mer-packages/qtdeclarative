@@ -1787,9 +1787,14 @@ bool QQuickWindowPrivate::deliverTouchPoints(QQuickItem *item, QTouchEvent *even
     // a single stationary press on an item shouldn't cause an event
     if (matchingNewPoints.isEmpty()) {
         bool stationaryOnly = true;
-        Q_FOREACH (QTouchEvent::TouchPoint tp, matchingPoints)
-            if (tp.state() != Qt::TouchPointStationary)
+
+        foreach (const QTouchEvent::TouchPoint &tp, matchingPoints) {
+            if (tp.state() != Qt::TouchPointStationary) {
                 stationaryOnly = false;
+                break;
+            }
+        }
+
         if (stationaryOnly)
             matchingPoints.clear();
     }
@@ -2920,6 +2925,8 @@ QQmlIncubationController *QQuickWindow::incubationController() const
 
     \value TextureOwnsGLTexture The texture object owns the texture id and
     will delete the GL texture when the texture object is deleted.
+
+    \value TextureCanUseAtlas The image can be uploaded into a texture atlas.
  */
 
 /*!
@@ -3012,6 +3019,14 @@ bool QQuickWindow::clearBeforeRendering() const
     return d->clearBeforeRendering;
 }
 
+/*!
+    \overload
+ */
+
+QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image) const
+{
+    return createTextureFromImage(image, 0);
+}
 
 
 /*!
@@ -3021,10 +3036,11 @@ bool QQuickWindow::clearBeforeRendering() const
     The caller of the function is responsible for deleting the returned texture.
     The actual GL texture will be deleted when the texture object is deleted.
 
-    Depending on the underlying implementation of the scene graph, the returned
-    texture may be part of an atlas. For code to be portable across implementations
-    one should always use the texture coordinates returned from
-    QSGTexture::normalizedTextureSubRect() when building geometry.
+    When \a options contains TextureCanUseAtlas the engine may put the image
+    into a texture atlas. Textures in an atlas need to rely on
+    QSGTexture::normalizedTextureSubRect() for their geometry and will not
+    support QSGTexture::Repeat. Other values from CreateTextureOption are
+    ignored.
 
     \warning This function will return 0 if the scene graph has not yet been
     initialized.
@@ -3040,11 +3056,15 @@ bool QQuickWindow::clearBeforeRendering() const
     \sa sceneGraphInitialized()
  */
 
-QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image) const
+QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image, CreateTextureOptions options) const
 {
     Q_D(const QQuickWindow);
-    if (d->context && d->context->isReady())
-        return d->context->createTexture(image);
+    if (d->context && d->context->isReady()) {
+        if (options & TextureCanUseAtlas)
+            return d->context->createTexture(image);
+        else
+            return d->context->createTextureNoAtlas(image);
+    }
     else
         return 0;
 }
@@ -3056,7 +3076,8 @@ QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image) const
 
     The caller of the function is responsible for deleting the returned texture.
 
-    Use \a options to customize the texture attributes.
+    Use \a options to customize the texture attributes. The TextureUsesAtlas
+    option is ignored.
 
     \warning This function will return 0 if the scenegraph has not yet been
     initialized.
