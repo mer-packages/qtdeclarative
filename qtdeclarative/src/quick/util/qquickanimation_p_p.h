@@ -55,6 +55,7 @@
 
 #include "qquickanimation_p.h"
 
+#include <private/qqmlguard_p.h>
 #include <private/qqmlnullablevalue_p_p.h>
 
 #include <qqml.h>
@@ -267,7 +268,7 @@ public:
     QVariant from;
     QVariant to;
 
-    QObject *target;
+    QQmlGuard<QObject> target;
     QString propertyName;
     QString properties;
     QList<QObject *> targets;
