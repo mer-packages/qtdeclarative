@@ -1544,6 +1544,20 @@ void QQuickGridView::setHighlightFollowsCurrentItem(bool autoHighlight)
     delegates; the fewer objects and bindings in a delegate, the faster a view may be
     scrolled.
 */
+
+/*!
+    \qmlproperty int QtQuick2::GridView::displayMarginBeginning
+    \qmlproperty int QtQuick2::GridView::displayMarginEnd
+    \internal
+
+    This property determines whether delegates are drawn outside the
+    visible area of the view.
+
+    If this value is non-zero, the view will create extra delegates before the
+    start of the view, or after the end.  This allows a drawing delegates outside
+    the bounds of the view.  Note that the items are not clipped.
+*/
+
 void QQuickGridView::setHighlightMoveDuration(int duration)
 {
     Q_D(QQuickGridView);
@@ -2009,8 +2023,8 @@ void QQuickGridView::viewportMoved(Qt::Orientations orient)
     d->refillOrLayout();
 
     // Set visibility of items to eliminate cost of items outside the visible area.
-    qreal from = d->isContentFlowReversed() ? -d->position()-d->size() : d->position();
-    qreal to = d->isContentFlowReversed() ? -d->position() : d->position()+d->size();
+    qreal from = d->isContentFlowReversed() ? -d->position()-d->displayMarginBeginning-d->size() : d->position()-d->displayMarginBeginning;
+    qreal to = d->isContentFlowReversed() ? -d->position()+d->displayMarginEnd : d->position()+d->size()+d->displayMarginEnd;
     for (int i = 0; i < d->visibleItems.count(); ++i) {
         FxGridItemSG *item = static_cast<FxGridItemSG*>(d->visibleItems.at(i));
         QQuickItemPrivate::get(item->item)->setCulled(item->rowPos() + d->rowSize() < from || item->rowPos() > to);
@@ -2359,7 +2373,7 @@ bool QQuickGridViewPrivate::applyInsertionChange(const QQmlChangeSet::Insert &ch
         // Insert items before the visible item.
         int insertionIdx = index;
         int i = count - 1;
-        int from = tempPos - buffer;
+        int from = tempPos - buffer - displayMarginBeginning;
 
         while (i >= 0) {
             if (rowPos > from && insertionIdx < visibleIndex) {
@@ -2396,7 +2410,7 @@ bool QQuickGridViewPrivate::applyInsertionChange(const QQmlChangeSet::Insert &ch
         }
     } else {
         int i = 0;
-        int to = buffer+tempPos+size()-1;
+        int to = buffer+displayMarginEnd+tempPos+size()-1;
         while (i < count && rowPos <= to + rowSize()*(columns - colNum)/qreal(columns+1)) {
             FxViewItem *item = 0;
             if (change.isMove() && (item = currentChanges.removedItems.take(change.moveKey(modelIndex + i))))

@@ -254,6 +254,8 @@ public:
     int itemCount;
     int buffer;
     int bufferMode;
+    int displayMarginBeginning;
+    int displayMarginEnd;
     Qt::LayoutDirection layoutDirection;
     QQuickItemView::VerticalLayoutDirection verticalLayoutDirection;
 

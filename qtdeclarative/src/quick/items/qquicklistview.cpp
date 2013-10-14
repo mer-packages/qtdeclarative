@@ -2133,6 +2133,18 @@ void QQuickListView::setOrientation(QQuickListView::Orientation orientation)
     scrolled.
 */
 
+/*!
+    \qmlproperty int QtQuick2::ListView::displayMarginBeginning
+    \qmlproperty int QtQuick2::ListView::displayMarginEnd
+    \internal
+
+    This property determines whether delegates are drawn outside the
+    visible area of the view.
+
+    If this value is non-zero, the view will create extra delegates before the
+    start of the view, or after the end.  This allows a drawing delegates outside
+    the bounds of the view.  Note that the items are not clipped.
+*/
 
 /*!
     \qmlproperty string QtQuick2::ListView::section.property
@@ -2683,8 +2695,8 @@ void QQuickListView::viewportMoved(Qt::Orientations orient)
     d->refillOrLayout();
 
     // Set visibility of items to eliminate cost of items outside the visible area.
-    qreal from = d->isContentFlowReversed() ? -d->position()-d->size() : d->position();
-    qreal to = d->isContentFlowReversed() ? -d->position() : d->position()+d->size();
+    qreal from = d->isContentFlowReversed() ? -d->position()-d->displayMarginBeginning-d->size() : d->position()-d->displayMarginBeginning;
+    qreal to = d->isContentFlowReversed() ? -d->position()+d->displayMarginEnd : d->position()+d->size()+d->displayMarginEnd;
     for (int i = 0; i < d->visibleItems.count(); ++i) {
         FxViewItem *item = static_cast<FxListItemSG*>(d->visibleItems.at(i));
         QQuickItemPrivate::get(item->item)->setCulled(item->endPosition() < from || item->position() > to);
@@ -2890,7 +2902,7 @@ bool QQuickListViewPrivate::applyInsertionChange(const QQmlChangeSet::Insert &ch
             // there are no visible items except items marked for removal
             index = visibleItems.count();
         } else if (visibleItems.at(i)->index + 1 == modelIndex
-            && visibleItems.at(i)->endPosition() <= buffer+tempPos+size()) {
+            && visibleItems.at(i)->endPosition() <= buffer+displayMarginEnd+tempPos+size()) {
             // Special case of appending an item to the model.
             index = visibleItems.count();
         } else {
@@ -2919,7 +2931,7 @@ bool QQuickListViewPrivate::applyInsertionChange(const QQmlChangeSet::Insert &ch
         // Insert items before the visible item.
         int insertionIdx = index;
         int i = 0;
-        int from = tempPos - buffer;
+        int from = tempPos - displayMarginBeginning - buffer;
 
         for (i = count-1; i >= 0; --i) {
             if (pos > from && insertionIdx < visibleIndex) {
@@ -2950,7 +2962,7 @@ bool QQuickListViewPrivate::applyInsertionChange(const QQmlChangeSet::Insert &ch
         }
     } else {
         int i = 0;
-        int to = buffer+tempPos+size();
+        int to = buffer+displayMarginEnd+tempPos+size();
         for (i = 0; i < count && pos <= to; ++i) {
             FxViewItem *item = 0;
             if (change.isMove() && (item = currentChanges.removedItems.take(change.moveKey(modelIndex + i))))
