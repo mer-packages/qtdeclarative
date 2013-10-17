@@ -628,6 +628,7 @@ void QQuickWindowPrivate::setFocusInScope(QQuickItem *scope, QQuickItem *item, Q
     QQuickItemPrivate *scopePrivate = scope ? QQuickItemPrivate::get(scope) : 0;
     QQuickItemPrivate *itemPrivate = QQuickItemPrivate::get(item);
 
+    QQuickItem *currentActiveFocusItem = activeFocusItem;
     QQuickItem *newActiveFocusItem = 0;
 
     QVarLengthArray<QQuickItem *, 20> changed;
@@ -700,7 +701,8 @@ void QQuickWindowPrivate::setFocusInScope(QQuickItem *scope, QQuickItem *item, Q
         q->sendEvent(newActiveFocusItem, &event);
     }
 
-    emit q->focusObjectChanged(activeFocusItem);
+    if (activeFocusItem != currentActiveFocusItem)
+        emit q->focusObjectChanged(activeFocusItem);
 
     if (!changed.isEmpty())
         notifyFocusChangesRecur(changed.data(), changed.count() - 1);
@@ -727,6 +729,7 @@ void QQuickWindowPrivate::clearFocusInScope(QQuickItem *scope, QQuickItem *item,
             return;//No focus, nothing to do.
     }
 
+    QQuickItem *currentActiveFocusItem = activeFocusItem;
     QQuickItem *oldActiveFocusItem = 0;
     QQuickItem *newActiveFocusItem = 0;
 
@@ -782,7 +785,8 @@ void QQuickWindowPrivate::clearFocusInScope(QQuickItem *scope, QQuickItem *item,
         q->sendEvent(newActiveFocusItem, &event);
     }
 
-    emit q->focusObjectChanged(activeFocusItem);
+    if (activeFocusItem != currentActiveFocusItem)
+        emit q->focusObjectChanged(activeFocusItem);
 
     if (!changed.isEmpty())
         notifyFocusChangesRecur(changed.data(), changed.count() - 1);
