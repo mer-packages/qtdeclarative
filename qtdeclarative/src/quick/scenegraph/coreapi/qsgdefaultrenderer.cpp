@@ -125,7 +125,7 @@ static bool nodeLessThanWithRenderOrder(QSGNode *nodeA, QSGNode *nodeB)
     return a->matrix() < b->matrix();
 }
 
-QSGDefaultRenderer::QSGDefaultRenderer(QSGContext *context)
+QSGDefaultRenderer::QSGDefaultRenderer(QSGRenderContext *context)
     : QSGRenderer(context)
     , m_opaqueNodes(64)
     , m_transparentNodes(64)

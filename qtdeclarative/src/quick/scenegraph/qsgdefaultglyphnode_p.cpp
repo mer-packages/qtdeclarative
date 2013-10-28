@@ -418,12 +418,21 @@ void QSGTextMaskMaterial::init()
     QOpenGLContext *ctx = const_cast<QOpenGLContext *>(QOpenGLContext::currentContext());
     Q_ASSERT(ctx != 0);
 
+    // The following piece of code will read/write to the font engine's caches,
+    // potentially from different threads. However, this is safe because this
+    // code is only called from QQuickItem::updatePaintNode() which is called
+    // only when the GUI is blocked, and multiple threads will call it in
+    // sequence. See also QSGRenderContext::invalidate
+
     QRawFontPrivate *fontD = QRawFontPrivate::get(m_font);
     if (fontD->fontEngine != 0) {
         m_glyphCache = fontD->fontEngine->glyphCache(ctx, m_cacheType, QTransform());
         if (!m_glyphCache || m_glyphCache->cacheType() != m_cacheType) {
             m_glyphCache = new QOpenGLTextureGlyphCache(m_cacheType, QTransform());
             fontD->fontEngine->setGlyphCache(ctx, m_glyphCache.data());
+            QSGRenderContext *sg = QSGRenderContext::from(ctx);
+            Q_ASSERT(sg);
+            sg->registerFontengineForCleanup(fontD->fontEngine);
         }
     }
 }

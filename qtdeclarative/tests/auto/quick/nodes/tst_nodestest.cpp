@@ -91,7 +91,7 @@ class DummyRenderer : public QSGRenderer
 {
 public:
     DummyRenderer(QSGRootNode *root)
-        : QSGRenderer(QSGContext::createDefaultContext())
+        : QSGRenderer(new QSGRenderContext(0))
         , changedNode(0)
         , changedState(0)
         , renderCount(0)
