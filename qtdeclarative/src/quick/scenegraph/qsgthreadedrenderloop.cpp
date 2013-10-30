@@ -858,8 +858,12 @@ void QSGThreadedRenderLoop::handleExposure(Window *w)
         RLDEBUG1("GUI: - starting render thread...");
 
         if (!w->thread->gl) {
+            QOpenGLContext *sharedContext = sg->sharedMaterialContext();
+
             w->thread->gl = new QOpenGLContext();
             w->thread->gl->setFormat(w->window->requestedFormat());
+            w->thread->gl->setShareContext(sharedContext);
+
             if (!w->thread->gl->create()) {
                 delete w->thread->gl;
                 w->thread->gl = 0;
@@ -981,6 +985,12 @@ void QSGThreadedRenderLoop::releaseResources(QQuickWindow *window, bool inDestru
     }
     w->thread->mutex.unlock();
 
+    bool liveContexts = false;
+    for (int ii = 0; !liveContexts && ii < m_windows.count(); ++ii)
+        liveContexts |= (m_windows.at(ii).thread->gl != 0);
+    if (!liveContexts)
+        sg->destroySharedMaterialContext();
+        
     if (waitForThread)
         w->thread->wait();
 }

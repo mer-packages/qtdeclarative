@@ -42,6 +42,7 @@
 #ifndef QSGCONTEXT_H
 #define QSGCONTEXT_H
 
+#include <QtCore/QHash>
 #include <QtCore/QObject>
 #include <QtCore/qabstractanimation.h>
 
@@ -71,6 +72,7 @@ class QSGMaterialType;
 class QSGRenderLoop;
 
 class QOpenGLContext;
+class QOffscreenSurface;
 class QOpenGLFramebufferObject;
 
 class QQuickTextureFactory;
@@ -158,6 +160,17 @@ public:
     static QSGContext *createDefaultContext();
     static QQuickTextureFactory *createTextureFactoryFromImage(const QImage &image);
     static QSGRenderLoop *createWindowManager();
+
+    QOpenGLContext *sharedMaterialContext();
+    void destroySharedMaterialContext();
+
+private:
+    friend class QSGRenderContext;
+    static QSGMaterialShader *prepareMaterial(QSGMaterial *);
+
+    QOpenGLContext *m_sharedContext;
+    QOffscreenSurface *m_sharedSurface;
+    QHash<QSGMaterialType *, QSGMaterialShader *> m_sharedMaterials;
 };
 
 QT_END_NAMESPACE

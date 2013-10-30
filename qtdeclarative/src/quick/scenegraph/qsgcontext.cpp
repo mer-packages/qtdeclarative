@@ -56,6 +56,7 @@
 
 #include <QGuiApplication>
 #include <QOpenGLContext>
+#include <QOffscreenSurface>
 #include <QQuickWindow>
 #include <QtGui/qopenglframebufferobject.h>
 
@@ -144,8 +145,10 @@ public:
     \internal
  */
 
-QSGContext::QSGContext(QObject *parent) :
-    QObject(*(new QSGContextPrivate), parent)
+QSGContext::QSGContext(QObject *parent)
+    : QObject(*(new QSGContextPrivate), parent)
+    , m_sharedContext(0)
+    , m_sharedSurface(0)
 {
     Q_D(QSGContext);
     static bool doSubpixel = qApp->arguments().contains(QLatin1String("--text-subpixel-antialiasing"));
@@ -299,6 +302,9 @@ void QSGRenderContext::renderNextFrame(QSGRenderer *renderer, GLuint fboId)
  */
 void QSGRenderContext::precompileMaterials()
 {
+    if (m_sg->m_sharedContext)
+        return;
+
     if (qEnvironmentVariableIsEmpty("QSG_NO_MATERIAL_PRELOADING")) {
         QSG_PRECOMPILE_MATERIAL(QSGVertexColorMaterial);
         QSG_PRECOMPILE_MATERIAL(QSGFlatColorMaterial);
@@ -310,26 +316,17 @@ void QSGRenderContext::precompileMaterials()
     }
 }
 
-/*!
-    Returns a material shader for the given material.
- */
 
-QSGMaterialShader *QSGRenderContext::prepareMaterial(QSGMaterial *material)
+QSGMaterialShader *QSGContext::prepareMaterial(QSGMaterial *material)
 {
-    QSGMaterialType *type = material->type();
-    QSGMaterialShader *shader = m_materials.value(type);
-    if (shader)
-        return shader;
-
 #ifndef QSG_NO_RENDER_TIMING
     if (qsg_render_timing  || QQmlProfilerService::enabled)
         qsg_renderer_timer.start();
 #endif
 
-    shader = material->createShader();
+    QSGMaterialShader *shader = material->createShader();
     shader->compile();
     shader->initialize();
-    m_materials[type] = shader;
 
 #ifndef QSG_NO_RENDER_TIMING
     if (qsg_render_timing)
@@ -343,6 +340,68 @@ QSGMaterialShader *QSGRenderContext::prepareMaterial(QSGMaterial *material)
 #endif
 
     return shader;
+}
+
+/*!
+    Returns a material shader for the given material.
+ */
+QSGMaterialShader *QSGRenderContext::prepareMaterial(QSGMaterial *material)
+{
+    QSGMaterialType *type = material->type();
+    QSGMaterialShader *shader = sceneGraphContext()->m_sharedMaterials.value(type);
+    if (!shader) shader = m_materials.value(type);
+
+    if (!shader) {
+        shader = QSGContext::prepareMaterial(material);
+        m_materials[type] = shader;
+    }
+
+    return shader;
+}
+
+#define QSG_SHARED_PRECOMPILE_MATERIAL(name) { name m; m_sharedMaterials[static_cast<QSGMaterial *>(&m)->type()] = prepareMaterial(&m); }
+
+QOpenGLContext *QSGContext::sharedMaterialContext()
+{
+    if (!m_sharedContext) {
+        m_sharedSurface = new QOffscreenSurface();
+        m_sharedSurface->create();
+
+        m_sharedContext = new QOpenGLContext();
+        if (!m_sharedContext->create())
+            qWarning("QtQuick: failed to create shared context");
+        m_sharedContext->makeCurrent(m_sharedSurface);
+
+        if (qEnvironmentVariableIsEmpty("QSG_NO_MATERIAL_PRELOADING")) {
+            QSG_SHARED_PRECOMPILE_MATERIAL(QSGVertexColorMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(QSGFlatColorMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(QSGOpaqueTextureMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(QSGTextureMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(SmoothTextureMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(SmoothColorMaterial);
+            QSG_SHARED_PRECOMPILE_MATERIAL(QSGDistanceFieldTextMaterial);
+        }
+
+        m_sharedContext->doneCurrent();
+    }
+
+    return m_sharedContext;
+}
+
+void QSGContext::destroySharedMaterialContext()
+{
+    if (m_sharedContext) {
+        m_sharedContext->makeCurrent(m_sharedSurface);
+
+        qDeleteAll(m_sharedMaterials.values());
+        m_sharedMaterials.clear();
+
+        m_sharedContext->doneCurrent();
+        delete m_sharedContext;
+        m_sharedContext = 0;
+        delete m_sharedSurface;
+        m_sharedSurface = 0;
+    }
 }
 
 /*!

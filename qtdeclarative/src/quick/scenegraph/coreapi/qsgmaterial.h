@@ -96,7 +96,7 @@ public:
 
 protected:
 
-    friend class QSGRenderContext;
+    friend class QSGContext;
 
     virtual void compile();
     virtual void initialize() { }
