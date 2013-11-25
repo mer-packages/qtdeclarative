@@ -513,10 +513,11 @@ void QQuickFlickablePrivate::updateBeginningEnd()
     bool atBoundaryChange = false;
 
     // Vertical
-    const int maxyextent = int(-q->maxYExtent());
+    const qreal maxyextent = -q->maxYExtent();
+    const qreal minyextent = -q->minYExtent();
     const qreal ypos = -vData.move.value();
-    bool atBeginning = (ypos <= -q->minYExtent());
-    bool atEnd = (maxyextent <= ypos);
+    bool atBeginning = ypos <= minyextent || qFuzzyCompare(minyextent, ypos);
+    bool atEnd = maxyextent <= ypos || qFuzzyCompare(maxyextent, ypos);
 
     if (atBeginning != vData.atBeginning) {
         vData.atBeginning = atBeginning;
@@ -528,10 +529,11 @@ void QQuickFlickablePrivate::updateBeginningEnd()
     }
 
     // Horizontal
-    const int maxxextent = int(-q->maxXExtent());
+    const qreal maxxextent = -q->maxXExtent();
+    const qreal minxextent = -q->minXExtent();
     const qreal xpos = -hData.move.value();
-    atBeginning = (xpos <= -q->minXExtent());
-    atEnd = (maxxextent <= xpos);
+    atBeginning = xpos <= minxextent || qFuzzyCompare(minxextent, xpos);
+    atEnd = maxxextent <= xpos || qFuzzyCompare(maxxextent, xpos);
 
     if (atBeginning != hData.atBeginning) {
         hData.atBeginning = atBeginning;
@@ -1044,17 +1046,20 @@ void QQuickFlickablePrivate::handleMouseMoveEvent(QMouseEvent *event)
             // the estimate to be altered
             const qreal minY = vData.dragMinBound + vData.startMargin;
             const qreal maxY = vData.dragMaxBound - vData.endMargin;
-            if (newY > minY)
-                newY = minY + (newY - minY) / 2;
-            if (newY < maxY && maxY - minY <= 0)
-                newY = maxY + (newY - maxY) / 2;
-            if (boundsBehavior == QQuickFlickable::StopAtBounds && newY <= maxY) {
-                newY = maxY;
-                rejectY = vData.pressPos == maxY && dy < 0;
-            }
-            if (boundsBehavior == QQuickFlickable::StopAtBounds && newY >= minY) {
-                newY = minY;
-                rejectY = vData.pressPos == minY && dy > 0;
+            if (boundsBehavior == QQuickFlickable::StopAtBounds) {
+                if (newY <= maxY) {
+                    newY = maxY;
+                    rejectY = vData.pressPos == maxY && vData.move.value() == maxY && dy < 0;
+                }
+                if (newY >= minY) {
+                    newY = minY;
+                    rejectY = vData.pressPos == minY && vData.move.value() == minY && dy > 0;
+                }
+            } else {
+                if (newY > minY)
+                    newY = minY + (newY - minY) / 2;
+                if (newY < maxY && maxY - minY <= 0)
+                    newY = maxY + (newY - maxY) / 2;
             }
             if (!rejectY && stealMouse && dy != 0.0) {
                 clearTimeline();
@@ -1075,17 +1080,20 @@ void QQuickFlickablePrivate::handleMouseMoveEvent(QMouseEvent *event)
             qreal newX = dx + hData.pressPos - hData.dragStartOffset;
             const qreal minX = hData.dragMinBound + hData.startMargin;
             const qreal maxX = hData.dragMaxBound - hData.endMargin;
-            if (newX > minX)
-                newX = minX + (newX - minX) / 2;
-            if (newX < maxX && maxX - minX <= 0)
-                newX = maxX + (newX - maxX) / 2;
-            if (boundsBehavior == QQuickFlickable::StopAtBounds && newX <= maxX) {
-                newX = maxX;
-                rejectX = hData.pressPos == maxX && dx < 0;
-            }
-            if (boundsBehavior == QQuickFlickable::StopAtBounds && newX >= minX) {
-                newX = minX;
-                rejectX = hData.pressPos == minX && dx > 0;
+            if (boundsBehavior == QQuickFlickable::StopAtBounds) {
+                if (newX <= maxX) {
+                    newX = maxX;
+                    rejectX = hData.pressPos == maxX && hData.move.value() == maxX && dx < 0;
+                }
+                if (newX >= minX) {
+                    newX = minX;
+                    rejectX = hData.pressPos == minX && hData.move.value() == minX && dx > 0;
+                }
+            } else {
+                if (newX > minX)
+                    newX = minX + (newX - minX) / 2;
+                if (newX < maxX && maxX - minX <= 0)
+                    newX = maxX + (newX - maxX) / 2;
             }
 
             if (!rejectX && stealMouse && dx != 0.0) {
