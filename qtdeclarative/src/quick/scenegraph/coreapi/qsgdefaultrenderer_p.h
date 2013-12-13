@@ -53,7 +53,7 @@ class Q_QUICK_PRIVATE_EXPORT QSGDefaultRenderer : public QSGRenderer
 {
     Q_OBJECT
 public:
-    QSGDefaultRenderer(QSGContext *context);
+    QSGDefaultRenderer(QSGRenderContext *context);
 
     void render();
 

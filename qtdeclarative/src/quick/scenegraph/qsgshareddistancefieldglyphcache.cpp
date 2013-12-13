@@ -199,9 +199,8 @@ namespace {
 QSGSharedDistanceFieldGlyphCache::QSGSharedDistanceFieldGlyphCache(const QByteArray &cacheId,
                                                                    QPlatformSharedGraphicsCache *sharedGraphicsCache,
                                                                    QSGDistanceFieldGlyphCacheManager *man,
-                                                                   QOpenGLContext *c,
                                                                    const QRawFont &font)
-    : QSGDistanceFieldGlyphCache(man, c, font)
+    : QSGDistanceFieldGlyphCache(man, font)
     , m_cacheId(cacheId)
     , m_sharedGraphicsCache(sharedGraphicsCache)
     , m_isInSceneGraphUpdate(false)
@@ -228,7 +227,10 @@ QSGSharedDistanceFieldGlyphCache::QSGSharedDistanceFieldGlyphCache(const QByteAr
             this, SLOT(reportItemsInvalidated(QByteArray,QVector<quint32>)),
             Qt::DirectConnection);
 
-    QQuickWindow *window = static_cast<QQuickWindow *>(c->surface());
+    QOpenGLContext *c = QOpenGLContext::currentContext();
+    Q_ASSERT(c);
+    Q_ASSERT(c->surface() && c->surface()->surfaceClass() == QSurface::Window);
+    QQuickWindow *window = qobject_cast<QQuickWindow *>(static_cast<QWindow *>(c->surface()));
     Q_ASSERT(window != 0);
 
     connect(window, SIGNAL(beforeSynchronizing()), this, SLOT(sceneGraphUpdateStarted()),

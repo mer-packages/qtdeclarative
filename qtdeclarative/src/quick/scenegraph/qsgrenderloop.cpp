@@ -93,7 +93,6 @@ public:
 
     void windowDestroyed(QQuickWindow *window);
 
-    void initializeGL();
     void renderWindow(QQuickWindow *window);
     void exposureChanged(QQuickWindow *window);
     QImage grab(QQuickWindow *window);
@@ -106,6 +105,7 @@ public:
     QAnimationDriver *animationDriver() const { return 0; }
 
     QSGContext *sceneGraphContext() const;
+    QSGRenderContext *createRenderContext(QSGContext *) const { return rc; }
 
     bool event(QEvent *);
 
@@ -118,6 +118,7 @@ public:
 
     QOpenGLContext *gl;
     QSGContext *sg;
+    QSGRenderContext *rc;
 
     QImage grabContent;
     int m_update_timer;
@@ -129,7 +130,6 @@ public:
 QSGRenderLoop *QSGRenderLoop::instance()
 {
     if (!s_instance) {
-
         s_instance = QSGContext::createWindowManager();
 
         bool bufferQueuing = QGuiApplicationPrivate::platformIntegration()->hasCapability(QPlatformIntegration::BufferQueueingOpenGL);
@@ -200,6 +200,7 @@ QSGGuiThreadRenderLoop::QSGGuiThreadRenderLoop()
     , eventPending(false)
 {
     sg = QSGContext::createDefaultContext();
+    rc = new QSGRenderContext(sg);
 }
 
 
@@ -224,7 +225,7 @@ void QSGGuiThreadRenderLoop::hide(QQuickWindow *window)
 
     if (m_windows.size() == 0) {
         if (!cd->persistentSceneGraph) {
-            sg->invalidate();
+            rc->invalidate();
             if (!cd->persistentGLContext) {
                 delete gl;
                 gl = 0;
@@ -237,7 +238,7 @@ void QSGGuiThreadRenderLoop::windowDestroyed(QQuickWindow *window)
 {
     hide(window);
     if (m_windows.size() == 0) {
-        sg->invalidate();
+        rc->invalidate();
         delete gl;
         gl = 0;
     }
@@ -261,7 +262,7 @@ void QSGGuiThreadRenderLoop::renderWindow(QQuickWindow *window)
         }
         current = gl->makeCurrent(window);
         if (current)
-            sg->initialize(gl);
+            QQuickWindowPrivate::get(window)->context->initialize(gl);
     } else {
         current = gl->makeCurrent(window);
     }

@@ -51,6 +51,8 @@
 
 QT_BEGIN_NAMESPACE
 
+class QSGRenderContext;
+
 class QSGWindowsRenderLoop : public QSGRenderLoop
 {
     Q_OBJECT
@@ -71,6 +73,7 @@ public:
     QAnimationDriver *animationDriver() const { return m_animationDriver; }
 
     QSGContext *sceneGraphContext() const { return m_sg; }
+    QSGRenderContext *createRenderContext(QSGContext *) const { return m_rc; }
 
     void releaseResources(QQuickWindow *) { }
 
@@ -102,6 +105,7 @@ private:
 
     QOpenGLContext *m_gl;
     QSGContext *m_sg;
+    QSGRenderContext *m_rc;
 
     QAnimationDriver *m_animationDriver;
 

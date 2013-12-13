@@ -107,7 +107,7 @@ QSGTexture *QQuickCanvasPixmap::texture()
             Q_ASSERT(m_pixmap->textureFactory());
             m_texture = m_pixmap->textureFactory()->createTexture(m_window);
         } else {
-            m_texture = QQuickWindowPrivate::get(m_window)->context->createTexture(m_image);
+            m_texture = m_window->createTextureFromImage(m_image);
         }
     }
     return m_texture;

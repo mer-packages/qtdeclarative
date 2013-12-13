@@ -48,7 +48,6 @@
 
 #include <QtQuick/private/qsgrenderer_p.h>
 #include <QtQuick/private/qsgtexture_p.h>
-#include <QtQuick/private/qsgflashnode_p.h>
 
 #include <private/qsgrenderloop_p.h>
 
@@ -384,9 +383,10 @@ void QQuickWindowPrivate::init(QQuickWindow *c)
     contentItemPrivate->flags |= QQuickItem::ItemIsFocusScope;
 
     windowManager = QSGRenderLoop::instance();
-    context = windowManager->sceneGraphContext();
+    QSGContext *sg = windowManager->sceneGraphContext();
+    context = windowManager->createRenderContext(sg);
     q->setSurfaceType(QWindow::OpenGLSurface);
-    q->setFormat(context->defaultSurfaceFormat());
+    q->setFormat(sg->defaultSurfaceFormat());
 
     QObject::connect(context, SIGNAL(initialized()), q, SIGNAL(sceneGraphInitialized()), Qt::DirectConnection);
     QObject::connect(context, SIGNAL(invalidated()), q, SIGNAL(sceneGraphInvalidated()), Qt::DirectConnection);
@@ -2417,10 +2417,6 @@ void QQuickWindowPrivate::updateDirtyNodes()
 
 void QQuickWindowPrivate::updateDirtyNode(QQuickItem *item)
 {
-#ifdef QML_RUNTIME_TESTING
-    bool didFlash = false;
-#endif
-
     QQuickItemPrivate *itemPriv = QQuickItemPrivate::get(item);
     quint32 dirty = itemPriv->dirtyAttributes;
     itemPriv->dirtyAttributes = 0;
@@ -2644,19 +2640,6 @@ void QQuickWindowPrivate::updateDirtyNode(QQuickItem *item)
     }
 #endif
 
-#ifdef QML_RUNTIME_TESTING
-    if (itemPriv->sceneGraphContext()->isFlashModeEnabled()) {
-        QSGFlashNode *flash = new QSGFlashNode();
-        flash->setRect(item->boundingRect());
-        itemPriv->childContainerNode()->appendChildNode(flash);
-        didFlash = true;
-    }
-    Q_Q(QQuickWindow);
-    if (didFlash) {
-        q->maybeUpdate();
-    }
-#endif
-
 }
 
 void QQuickWindow::maybeUpdate()
@@ -2697,9 +2680,7 @@ void QQuickWindow::setTransientParent_helper(QQuickWindow *window)
 QOpenGLContext *QQuickWindow::openglContext() const
 {
     Q_D(const QQuickWindow);
-    if (d->context->isReady())
-        return d->context->glContext();
-    return 0;
+    return d->context->openglContext();
 }
 
 /*!
@@ -2895,7 +2876,7 @@ QImage QQuickWindow::grabWindow()
     Q_D(QQuickWindow);
     if (!isVisible()) {
 
-        if (d->context->isReady()) {
+        if (d->context->openglContext()) {
             qWarning("QQuickWindow::grabWindow: scene graph already in use");
             return QImage();
         }
@@ -3081,7 +3062,7 @@ bool QQuickWindow::clearBeforeRendering() const
 QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image) const
 {
     Q_D(const QQuickWindow);
-    if (d->context && d->context->isReady())
+    if (d->context && d->context->openglContext())
         return d->context->createTexture(image);
     else
         return 0;
@@ -3104,7 +3085,7 @@ QSGTexture *QQuickWindow::createTextureFromImage(const QImage &image) const
 QSGTexture *QQuickWindow::createTextureFromId(uint id, const QSize &size, CreateTextureOptions options) const
 {
     Q_D(const QQuickWindow);
-    if (d->context && d->context->isReady()) {
+    if (d->context && d->context->openglContext()) {
         QSGPlainTexture *texture = new QSGPlainTexture();
         texture->setTextureId(id);
         texture->setHasAlphaChannel(options & TextureHasAlphaChannel);
