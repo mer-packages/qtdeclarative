@@ -1155,6 +1155,18 @@ void tst_qquickitem::enabledFocus()
     QCOMPARE(child2.hasFocus(), false);
     QCOMPARE(child2.hasActiveFocus(), false);
     QCOMPARE(window.activeFocusItem(), static_cast<QQuickItem *>(&child1));
+
+    child2.setFocus(true);
+    QCOMPARE(root.isEnabled(), true);
+    QCOMPARE(root.hasFocus(), true);
+    QCOMPARE(root.hasActiveFocus(), true);
+    QCOMPARE(child1.isEnabled(), true);
+    QCOMPARE(child1.hasFocus(), false);
+    QCOMPARE(child1.hasActiveFocus(), false);
+    QCOMPARE(child2.isEnabled(), false);
+    QCOMPARE(child2.hasFocus(), true);
+    QCOMPARE(child2.hasActiveFocus(), false);
+    QCOMPARE(window.activeFocusItem(), static_cast<QQuickItem *>(&root));
 }
 
 void tst_qquickitem::mouseGrab()
